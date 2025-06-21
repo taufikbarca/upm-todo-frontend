@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem To-Do List UPM PT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom styles from original code */
+        .priority-high { border-left: 4px solid #ef4444; }
+        .priority-medium { border-left: 4px solid #f59e0b; }
+        .priority-low { border-left: 4px solid #10b981; }
+        .task-completed { background-color: #f0fdf4; }
+        .task-completed .task-title { text-decoration: line-through; color: #9ca3af; }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        /* Modal specific styles */
+        .modal {
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .modal:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Message Modal -->
+    <div id="messageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800" id="messageModalTitle">Pesan</h3>
+                <button onclick="closeMessageModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p id="messageModalContent" class="text-gray-700 mb-4"></p>
+            <button onclick="closeMessageModal()" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Konfirmasi</h3>
+                <button onclick="closeConfirmModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p id="confirmModalContent" class="text-gray-700 mb-4"></p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeConfirmModal()" class="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Batal
+                </button>
+                <button id="confirmModalActionButton" class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Konfirmasi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-gray-800">Login UPM PT</h3>
+                <button onclick="closeLoginModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="role" class="block text-sm font-medium text-gray-700">Jabatan</label>
+                    <select id="role" name="role" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">Pilih Jabatan</option>
+                        <option value="ketua">Ketua UPM</option>
+                        <option value="sekretaris">Sekretaris UPM</option>
+                        <option value="gugus_tugas_fti">Gugus Tugas Fakultas TI</option>
+                        <option value="gugus_tugas_fkip">Gugus Tugas Fakultas Keguruan dan Ilmu Pendidikan</option>
+                        <option value="gugus_tugas_fkes">Gugus Tugas Fakultas Kesehatan</option>
+                        <option value="gugus_tugas_fh">Gugus Tugas Fakultas Hukum</option>
+                        <option value="gugus_tugas_feb">Gugus Tugas Fakultas Ekonomi dan Bisnis</option>
+                        <option value="gugus_tugas_ft">Gugus Tugas Fakultas Teknik</option>
+                    </select>
+                </div>
+
+                <div>
+                    <button type="button" onclick="login()" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Masuk
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header class="bg-indigo-700 text-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-white p-2 rounded-lg">
+                            <i class="fas fa-check-double text-indigo-700 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold">Sistem To-Do List</h1>
+                            <p class="text-sm text-indigo-200">Unit Penjaminan Mutu Perguruan Tinggi</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div id="userInfo" class="hidden sm:flex items-center space-x-2 bg-indigo-800 px-3 py-1 rounded-full">
+                            <span id="userRoleBadge" class="text-xs font-medium"></span>
+                            <span id="usernameDisplay" class="text-sm"></span>
+                        </div>
+                        <button onclick="logout()" class="flex items-center space-x-1 text-sm hover:text-indigo-200">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span class="hidden sm:inline">Keluar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Dashboard Summary -->
+            <div id="dashboardSummary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-lg shadow p-4 border-l-4 border-indigo-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-gray-500">Total Tugas</p>
+                            <h3 class="text-2xl font-bold" id="totalTasks">0</h3>
+                        </div>
+                        <div class="bg-indigo-100 p-3 rounded-full">
+                            <i class="fas fa-tasks text-indigo-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-gray-500">Selesai</p>
+                            <h3 class="text-2xl font-bold" id="completedTasks">0</h3>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-check-circle text-green-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-gray-500">Belum Selesai</p>
+                            <h3 class="text-2xl font-bold" id="pendingTasks">0</h3>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded-full">
+                            <i class="fas fa-clock text-yellow-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Management -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Task Form -->
+                <div id="taskFormContainer" class="lg:col-span-1 bg-white rounded-lg shadow p-4">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-800">Tambah Tugas Baru</h2>
+                    <form id="taskForm" class="space-y-4">
+                        <div>
+                            <label for="taskTitle" class="block text-sm font-medium text-gray-700">Judul Tugas</label>
+                            <input type="text" id="taskTitle" name="taskTitle" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                        </div>
+                        <div>
+                            <label for="taskDescription" class="block text-sm font-medium text-gray-700">Deskripsi</label>
+                            <textarea id="taskDescription" name="taskDescription" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                        </div>
+                        <div>
+                            <label for="taskPriority" class="block text-sm font-medium text-gray-700">Prioritas</label>
+                            <select id="taskPriority" name="taskPriority" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="low">Rendah</option>
+                                <option value="medium" selected>Sedang</option>
+                                <option value="high">Tinggi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="taskDeadline" class="block text-sm font-medium text-gray-700">Deadline</label>
+                            <input type="date" id="taskDeadline" name="taskDeadline" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div id="assignToContainer" class="hidden">
+                            <label for="assignTo" class="block text-sm font-medium text-gray-700">Ditugaskan ke</label>
+                            <select id="assignTo" name="assignTo" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="all">Semua Anggota</option>
+                                <option value="sekretaris">Sekretaris UPM</option>
+                                <option value="gugus_tugas_fti">Gugus Tugas Fakultas TI</option>
+                                <option value="gugus_tugas_fkip">Gugus Tugas Fakultas Keguruan dan Ilmu Pendidikan</option>
+                                <option value="gugus_tugas_fkes">Gugus Tugas Fakultas Kesehatan</option>
+                                <option value="gugus_tugas_fh">Gugus Tugas Fakultas Hukum</option>
+                                <option value="gugus_tugas_feb">Gugus Tugas Fakultas Ekonomi dan Bisnis</option>
+                                <option value="gugus_tugas_ft">Gugus Tugas Fakultas Teknik</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Tambah Tugas
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Task List -->
+                <div class="lg:col-span-3">
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold text-gray-800">Daftar Tugas</h2>
+                            <div class="flex space-x-2">
+                                <div class="relative">
+                                    <select id="filterPriority" class="appearance-none bg-gray-100 border border-gray-300 rounded-md pl-3 pr-8 py-1 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="all">Semua Prioritas</option>
+                                        <option value="high">Tinggi</option>
+                                        <option value="medium">Sedang</option>
+                                        <option value="low">Rendah</option>
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <i class="fas fa-chevron-down text-gray-500 text-xs"></i>
+                                    </div>
+                                </div>
+                                <div class="relative">
+                                    <select id="filterStatus" class="appearance-none bg-gray-100 border border-gray-300 rounded-md pl-3 pr-8 py-1 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="all">Semua Status</option>
+                                        <option value="completed">Selesai</option>
+                                        <option value="pending">Belum Selesai</option>
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <i class="fas fa-chevron-down text-gray-500 text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divide-y divide-gray-200">
+                            <div id="taskList" class="divide-y divide-gray-200">
+                                <!-- Tasks will be loaded here -->
+                                <div class="p-4 text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i> Memuat tugas...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-100 border-t border-gray-200 mt-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <div class="bg-indigo-600 p-1 rounded">
+                            <i class="fas fa-university text-white text-xs"></i>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">Unit Penjaminan Mutu PT</span>
+                    </div>
+                    <div class="mt-4 md:mt-0">
+                        <p class="text-xs text-gray-500">© 2023 Sistem To-Do List UPM PT. All rights reserved.</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Base URL for your backend API
+        // di D:\todolist\frontend\index.html
+        const API_BASE_URL = 'http://kuntauf96.pythonanywhere.com'; // <-- PASTIKAN INI SESUAI DENGAN URL ANDA
+        let currentUser = null; // Stores authenticated user info
+
+        // DOM elements
+        const loginModal = document.getElementById('loginModal');
+        const app = document.getElementById('app');
+        const loginForm = document.getElementById('loginForm');
+        const taskForm = document.getElementById('taskForm');
+        const taskList = document.getElementById('taskList');
+        const filterPriority = document.getElementById('filterPriority');
+        const filterStatus = document.getElementById('filterStatus');
+        const assignToContainer = document.getElementById('assignToContainer');
+        const userInfo = document.getElementById('userInfo');
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const totalTasks = document.getElementById('totalTasks');
+        const completedTasks = document.getElementById('completedTasks');
+        const pendingTasks = document.getElementById('pendingTasks');
+
+        // Modal elements for custom alerts/confirms
+        const messageModal = document.getElementById('messageModal');
+        const messageModalTitle = document.getElementById('messageModalTitle');
+        const messageModalContent = document.getElementById('messageModalContent');
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmModalContent = document.getElementById('confirmModalContent');
+        const confirmModalActionButton = document.getElementById('confirmModalActionButton');
+        let confirmActionCallback = null; // Stores the callback for confirmation modal
+
+        /**
+         * Displays a custom message modal.
+         * @param {string} message - The message to display.
+         * @param {string} [title='Pesan'] - The title of the modal.
+         */
+        function showMessage(message, title = 'Pesan') {
+            messageModalTitle.textContent = title;
+            messageModalContent.textContent = message;
+            messageModal.classList.remove('hidden');
+        }
+
+        /**
+         * Closes the message modal.
+         */
+        function closeMessageModal() {
+            messageModal.classList.add('hidden');
+        }
+
+        /**
+         * Displays a custom confirmation modal.
+         * @param {string} message - The confirmation message.
+         * @param {function} onConfirm - The callback function to execute if confirmed.
+         */
+        function showConfirm(message, onConfirm) {
+            confirmModalContent.textContent = message;
+            confirmActionCallback = onConfirm; // Store the callback
+            confirmModalActionButton.onclick = () => {
+                if (confirmActionCallback) {
+                    confirmActionCallback();
+                }
+                closeConfirmModal();
+            };
+            confirmModal.classList.remove('hidden');
+        }
+
+        /**
+         * Closes the confirmation modal.
+         */
+        function closeConfirmModal() {
+            confirmModal.classList.add('hidden');
+            confirmActionCallback = null; // Clear the callback
+        }
+
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            // Show login modal by default
+            loginModal.classList.remove('hidden');
+
+            // Set up event listeners
+            filterPriority.addEventListener('change', filterTasks);
+            filterStatus.addEventListener('change', filterTasks);
+            taskForm.addEventListener('submit', addTask);
+        });
+
+        /**
+         * Handles user login by sending credentials to the backend.
+         */
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            if (!username || !password || !role) {
+                showMessage('Harap isi semua field!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password, role })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    currentUser = result.user;
+                    closeLoginModal();
+                    app.classList.remove('hidden');
+                    updateUIForUserRole();
+                    loadTasks();
+                } else {
+                    showMessage(result.message || 'Login gagal. Silakan coba lagi.');
+                }
+            } catch (error) {
+                console.error('Error during login:', error);
+                showMessage('Terjadi kesalahan saat mencoba login. Pastikan backend berjalan di ' + API_BASE_URL);
+            }
+        }
+
+        /**
+         * Closes the login modal.
+         */
+        function closeLoginModal() {
+            loginModal.classList.add('hidden');
+        }
+
+        /**
+         * Handles user logout.
+         */
+        function logout() {
+            currentUser = null;
+            app.classList.add('hidden');
+            loginModal.classList.remove('hidden');
+            loginForm.reset();
+        }
+
+        /**
+         * Updates the UI elements based on the current user's role.
+         */
+         function updateUIForUserRole() {
+            if (!currentUser) return;
+
+            usernameDisplay.textContent = currentUser.name;
+
+            let badgeText = '';
+            let badgeColor = '';
+
+            switch(currentUser.role) {
+                case 'ketua':
+                    badgeText = 'Ketua UPM';
+                    badgeColor = 'bg-purple-600';
+                    break;
+                case 'sekretaris':
+                    badgeText = 'Sekretaris';
+                    badgeColor = 'bg-blue-600';
+                    break;
+                case 'gugus_tugas_fti':
+                    badgeText = 'Gugus FTI';
+                    badgeColor = 'bg-green-600'; // Anda bisa sesuaikan warna
+                    break;
+                case 'gugus_tugas_fkip':
+                    badgeText = 'Gugus FKIP';
+                    badgeColor = 'bg-teal-600'; // Warna lain untuk diferensiasi
+                    break;
+                case 'gugus_tugas_fkes':
+                    badgeText = 'Gugus FKES';
+                    badgeColor = 'bg-red-500';
+                    break;
+                case 'gugus_tugas_fh':
+                    badgeText = 'Gugus FH';
+                    badgeColor = 'bg-orange-500';
+                    break;
+                case 'gugus_tugas_feb':
+                    badgeText = 'Gugus FEB';
+                    badgeColor = 'bg-yellow-500';
+                    break;
+                case 'gugus_tugas_ft':
+                    badgeText = 'Gugus FT';
+                    badgeColor = 'bg-pink-500';
+                    break;
+                // Fallback for general 'gugus_tugas' if it's still used somewhere
+                case 'gugus_tugas':
+                    badgeText = 'Gugus Tugas';
+                    badgeColor = 'bg-gray-600';
+                    break;
+                default:
+                    badgeText = 'Pengguna'; // Default jika role tidak dikenali
+                    badgeColor = 'bg-gray-500';
+                    break;
+            }
+
+            userRoleBadge.textContent = badgeText;
+            userRoleBadge.className = `text-xs font-medium px-2 py-1 rounded-full text-white ${badgeColor}`;
+            userInfo.classList.remove('hidden');
+
+            // Show/hide assign to field based on role (logic remains the same)
+            if (currentUser.role === 'ketua' || currentUser.role === 'sekretaris') {
+                assignToContainer.classList.remove('hidden');
+            } else {
+                assignToContainer.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Fetches tasks from the backend based on the current user's role and filters.
+         */
+        async function loadTasks() {
+            if (!currentUser) {
+                taskList.innerHTML = `<div class="p-4 text-center text-gray-500">Anda belum login.</div>`;
+                return;
+            }
+
+            const priorityFilter = filterPriority.value;
+            const statusFilter = filterStatus.value;
+
+            taskList.innerHTML = `<div class="p-4 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Memuat tugas...</div>`;
+
+            try {
+                const queryParams = new URLSearchParams({
+                    userRole: currentUser.role,
+                    priority: priorityFilter,
+                    status: statusFilter
+                }).toString();
+
+                const response = await fetch(`${API_BASE_URL}/tasks?${queryParams}`);
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    const fetchedTasks = result.tasks;
+                    updateTaskCounters(fetchedTasks);
+                    renderTasks(fetchedTasks);
+                } else {
+                    showMessage(result.message || 'Gagal memuat tugas.');
+                    taskList.innerHTML = `<div class="p-4 text-center text-red-500"><i class="fas fa-exclamation-circle mr-2"></i> Gagal memuat tugas: ${result.message || 'Server Error'}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                showMessage('Terjadi kesalahan saat memuat tugas. Pastikan backend berjalan.');
+                taskList.innerHTML = `<div class="p-4 text-center text-red-500"><i class="fas fa-exclamation-circle mr-2"></i> Terjadi kesalahan jaringan.</div>`;
+            }
+        }
+
+        /**
+         * Updates the dashboard counters for total, completed, and pending tasks.
+         * @param {Array<Object>} tasks - The array of tasks.
+         */
+        function updateTaskCounters(tasks) {
+            totalTasks.textContent = tasks.length;
+            completedTasks.textContent = tasks.filter(task => task.completed).length;
+            pendingTasks.textContent = tasks.filter(task => !task.completed).length;
+        }
+
+        /**
+         * Renders the given array of tasks into the task list UI.
+         * @param {Array<Object>} tasksToRender - The array of tasks to display.
+         */
+        function renderTasks(tasksToRender) {
+            if (tasksToRender.length === 0) {
+                taskList.innerHTML = `
+                    <div class="p-6 text-center">
+                        <i class="far fa-check-circle text-gray-400 text-4xl mb-2"></i>
+                        <p class="text-gray-500">Tidak ada tugas yang ditemukan</p>
+                    </div>
+                `;
+                return;
+            }
+
+            taskList.innerHTML = '';
+
+            tasksToRender.forEach(task => {
+                const taskElement = createTaskElement(task);
+                taskList.appendChild(taskElement);
+            });
+        }
+
+        /**
+         * Creates an HTML element for a single task.
+         * @param {Object} task - The task object.
+         * @returns {HTMLElement} The created task DOM element.
+         */
+        function createTaskElement(task) {
+            const taskElement = document.createElement('div');
+            taskElement.className = `p-4 hover:bg-gray-50 transition-colors duration-150 ${task.completed ? 'task-completed' : ''} priority-${task.priority}`;
+            taskElement.dataset.id = task.id;
+            taskElement.dataset.priority = task.priority;
+            taskElement.dataset.status = task.completed ? 'completed' : 'pending';
+
+            let priorityBadge = '';
+            if (task.priority === 'high') {
+                priorityBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Tinggi</span>';
+            } else if (task.priority === 'medium') {
+                priorityBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Sedang</span>';
+            } else {
+                priorityBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Rendah</span>';
+            }
+
+            let assignedInfo = '';
+            if (task.assignedTo === 'all') {
+                assignedInfo = 'Ditugaskan ke semua anggota';
+            } else if (task.assignedTo === 'sekretaris') {
+                assignedInfo = 'Ditugaskan ke sekretaris';
+            } else if (task.assignedTo === 'gugus_tugas') {
+                assignedInfo = 'Ditugaskan ke gugus tugas';
+            } else {
+                 assignedInfo = 'Tidak Ditugaskan';
+            }
+
+            const deadlineDate = new Date(task.deadline + 'T00:00:00'); // Add time to avoid timezone issues
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const timeDiff = deadlineDate.getTime() - today.getTime();
+            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+            let deadlineBadge = '';
+            if (!task.deadline) {
+                deadlineBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">Tidak ada deadline</span>';
+            } else if (daysDiff < 0) {
+                deadlineBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Terlambat</span>';
+            } else if (daysDiff === 0) {
+                deadlineBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Hari ini</span>';
+            } else if (daysDiff <= 3) {
+                deadlineBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">${daysDiff} hari lagi</span>`;
+            } else {
+                deadlineBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">${new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>`;
+            }
+
+            let actionButtons = '';
+            // Only allow completion if not already completed
+            if (!task.completed) {
+                actionButtons = `
+                    <button onclick="toggleTaskCompletion('${task.id}')" class="text-sm text-green-600 hover:text-green-800 mr-3">
+                        <i class="fas fa-check-circle mr-1"></i> Selesai
+                    </button>
+                `;
+
+                // Allow edit and delete only for Ketua and Sekretaris
+                if (currentUser.role === 'ketua' || currentUser.role === 'sekretaris') {
+                    actionButtons += `
+                        <button onclick="editTask('${task.id}')" class="text-sm text-blue-600 hover:text-blue-800 mr-3">
+                            <i class="fas fa-edit mr-1"></i> Edit
+                        </button>
+                        <button onclick="deleteTask('${task.id}')" class="text-sm text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash-alt mr-1"></i> Hapus
+                        </button>
+                    `;
+                }
+            } else {
+                // If completed, show "Selesai" text and allow re-activation if user is authorized
+                actionButtons = `
+                    <span class="text-sm text-green-600">
+                        <i class="fas fa-check mr-1"></i> Selesai
+                    </span>
+                `;
+                if (currentUser.role === 'ketua' || currentUser.role === 'sekretaris') {
+                     actionButtons += `
+                        <button onclick="toggleTaskCompletion('${task.id}')" class="text-sm text-yellow-600 hover:text-yellow-800 ml-3">
+                            <i class="fas fa-undo mr-1"></i> Batalkan Selesai
+                        </button>
+                    `;
+                }
+            }
+
+            taskElement.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="flex items-start space-x-3">
+                        <div class="mt-1">
+                            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskCompletion('${task.id}')" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        </div>
+                        <div>
+                            <h3 class="task-title text-md font-medium text-gray-900">${task.title}</h3>
+                            <p class="text-sm text-gray-500 mt-1">${task.description}</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                ${priorityBadge}
+                                <span class="text-xs text-gray-500">Dibuat oleh: ${task.assignedBy}</span>
+                                <span class="text-xs text-gray-500">${assignedInfo}</span>
+                                ${deadlineBadge}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        ${actionButtons}
+                    </div>
+                </div>
+            `;
+
+            return taskElement;
+        }
+
+        /**
+         * Adds a new task by sending data to the backend.
+         * @param {Event} e - The form submission event.
+         */
+        async function addTask(e) {
+            e.preventDefault();
+
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDescription').value;
+            const priority = document.getElementById('taskPriority').value;
+            const deadline = document.getElementById('taskDeadline').value;
+            // Ensure assignedTo reflects the actual selection or defaults based on role
+            // Gugus Tugas can only assign to themselves (implicitly "gugus_tugas" for their view)
+            // Ketua/Sekretaris can assign to 'all', 'gugus_tugas', or 'sekretaris'
+            const assignedTo = currentUser.role === 'gugus_tugas' ? 'gugus_tugas' : document.getElementById('assignTo').value;
+
+            if (!title) {
+                showMessage('Judul tugas harus diisi!');
+                return;
+            }
+
+            const newTaskData = {
+                title: title,
+                description: description,
+                priority: priority,
+                deadline: deadline || null,
+                assignedBy: currentUser.role, // The user who creates the task
+                assignedTo: assignedTo,
+                createdAt: new Date().toISOString().split('T')[0]
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/tasks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newTaskData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    taskForm.reset();
+                    loadTasks(); // Reload tasks after adding
+                    showMessage('Tugas berhasil ditambahkan!');
+                } else {
+                    showMessage(result.message || 'Gagal menambahkan tugas.');
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+                showMessage('Terjadi kesalahan saat menambahkan tugas. Pastikan backend berjalan.');
+            }
+        }
+
+        /**
+         * Toggles the completion status of a task by sending a PUT request to the backend.
+         * @param {string} taskId - The ID of the task to toggle.
+         */
+        async function toggleTaskCompletion(taskId) {
+            // Find the current task object to get its current completion status
+            const taskElement = document.querySelector(`[data-id="${taskId}"]`);
+            // Directly get the current completed status from the task's dataset or inferred from the element class
+            const currentStatus = taskElement.classList.contains('task-completed');
+            const newStatus = !currentStatus;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ completed: newStatus })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    loadTasks(); // Reload tasks to reflect the change
+                    showMessage(`Tugas berhasil ${newStatus ? 'diselesaikan' : 'diaktifkan kembali'}!`);
+                } else {
+                    showMessage(result.message || 'Gagal memperbarui status tugas.');
+                }
+            } catch (error) {
+                console.error('Error toggling task completion:', error);
+                showMessage('Terjadi kesalahan saat memperbarui tugas. Pastikan backend berjalan.');
+            }
+        }
+
+        /**
+         * Marks a task as completed by calling toggleTaskCompletion.
+         * @param {string} taskId - The ID of the task to complete.
+         */
+        function completeTask(taskId) {
+            toggleTaskCompletion(taskId);
+        }
+
+        /**
+         * Placeholder for editing a task. In a full app, this would open an edit modal.
+         * @param {string} taskId - The ID of the task to edit.
+         */
+        function editTask(taskId) {
+            showMessage(`Fungsi edit untuk tugas ID ${taskId} akan diimplementasikan.`, 'Fitur Belum Tersedia');
+            // In a real implementation, you would fetch the task details by ID
+            // populate a form (possibly in a modal), and then send a PUT request
+            // to update the task on the backend.
+        }
+
+        /**
+         * Deletes a task after user confirmation.
+         * @param {string} taskId - The ID of the task to delete.
+         */
+        function deleteTask(taskId) {
+            showConfirm('Apakah Anda yakin ingin menghapus tugas ini?', async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        loadTasks(); // Reload tasks after deletion
+                        showMessage('Tugas berhasil dihapus!');
+                    } else {
+                        showMessage(result.message || 'Gagal menghapus tugas.');
+                    }
+                } catch (error) {
+                    console.error('Error deleting task:', error);
+                    showMessage('Terjadi kesalahan saat menghapus tugas. Pastikan backend berjalan.');
+                }
+            });
+        }
+
+        /**
+         * Filters tasks based on selected priority and status.
+         */
+        function filterTasks() {
+            // Re-call loadTasks, which will now use the updated filter values from the select elements
+            loadTasks();
+        }
+    </script>
+</body>
+</html>
